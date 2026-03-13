@@ -65,15 +65,18 @@
     background: var(--green);
     border-radius: 50%;
     animation: pulse 2s infinite;
+    transition: background 0.2s;
   }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  @keyframes pulse-busy { 0%,100%{background:var(--accent);opacity:1} 50%{background:var(--green);opacity:0.7} }
+  .worker-dot.busy { animation: pulse-busy 0.4s infinite; }
 
   /* ─── GLOBAL PROGRESS ─── */
   .global-progress { height: 3px; background: var(--border-soft); display: none; }
   .global-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent), #fbbf24);
-    transition: width 0.3s;
+    background: #ef4444;
+    transition: width 0.3s, background 0.4s;
     width: 0%;
   }
 
@@ -434,6 +437,7 @@
     margin-top: 0.05rem;
     font-variant-numeric: tabular-nums;
   }
+  .file-savings.est { opacity: 0.6; font-style: italic; }
 
   .file-progress { width: 48px; flex-shrink: 0; text-align: right; }
   .progress-bar-bg {
@@ -522,12 +526,80 @@
     line-height: 1.55;
   }
   .empty-list svg { margin-bottom: 0.5rem; opacity: 0.3; }
+
+  /* ─── GLOBAL DRAG OVERLAY ─── */
+  .drag-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(11,18,32,0.82);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: none;
+    border: 3px dashed var(--accent);
+    border-radius: 0.75rem;
+    margin: 8px;
+    box-sizing: border-box;
+  }
+  .drag-overlay.active { display: flex; }
+  .drag-overlay svg { opacity: 0.7; color: var(--accent); }
+  .drag-overlay p { font-size: 1.1rem; font-weight: 700; color: var(--accent); letter-spacing: -0.01em; }
+  .drag-overlay small { font-size: 0.78rem; color: var(--muted); }
+
+  /* ─── AVANSERT KNAPP ─── */
+  .advanced-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--btn-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    text-align: left;
+  }
+  .advanced-btn:hover { border-color: var(--muted); color: var(--text); }
+  .advanced-btn.open {
+    border-color: var(--accent-border);
+    background: var(--accent-glow);
+    color: var(--text);
+  }
+  .advanced-btn .adv-label { display: flex; align-items: center; gap: 0.45rem; }
+  .advanced-btn .adv-arrow {
+    font-size: 0.65rem;
+    transition: transform 0.2s;
+    opacity: 0.6;
+  }
+  .advanced-btn.open .adv-arrow { transform: rotate(180deg); opacity: 1; }
+
+  .advanced-panel {
+    display: none;
+    margin-top: 0.6rem;
+  }
+  .advanced-panel.open { display: block; }
 </style>
 </head>
 <body>
 
+<div class="drag-overlay" id="dragOverlay">
+  <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+  <p>Slipp bildefiler her</p>
+  <small>PNG, JPG, WEBP, BMP, GIF og flere</small>
+</div>
+
 <div class="header">
-  <h1>Teksturforenkler</h1>
+  <h1 title="Denne nettsiden er utviklet av Mathias Weiseth Gran, BIM Tekniker">GranBIM - Teksturforenkler</h1>
   <div class="worker-badge">
     <div class="worker-dot"></div>
     <span id="workerCount">16 arbeidere</span>
@@ -565,52 +637,58 @@
         <div class="controls-label">Forhåndsinnstilling</div>
         <div class="preset-group">
           <button class="preset-btn active" onclick="setPreset('light')" id="preset-light">
-            Lett <small>~20% mindre</small>
+            Lett <small>80% skalering</small>
           </button>
           <button class="preset-btn" onclick="setPreset('medium')" id="preset-medium">
-            Middels <small>~50% mindre</small>
+            Middels <small>50% skalering</small>
+          </button>
+          <button class="preset-btn" onclick="setPreset('efficient')" id="preset-efficient">
+            Effektiv <small>30% skalering</small>
           </button>
           <button class="preset-btn" onclick="setPreset('extreme')" id="preset-extreme">
-            Ekstrem <small>~75% mindre</small>
+            Ekstrem <small>10% skalering</small>
           </button>
         </div>
-        <div class="toggle-row">
-          <span class="toggle-label">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="15.5" r="2.5"></circle><circle cx="8.5" cy="15.5" r="2.5"></circle><path d="M13.5 9v1.5L17 14M13.5 9v1.5L10 14"></path></svg>
-            Bevar farger
+
+        <button class="advanced-btn" id="advancedBtn" onclick="toggleAdvanced()">
+          <span class="adv-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07M4.93 4.93a10 10 0 0 0 14.14 14.14"></path><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line></svg>
+            Kontrollpanel
           </span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="togglePreserveColors" onchange="onPreserveColorsToggle()" checked="checked">
-            <span class="toggle-track"></span>
-          </label>
+          <span class="adv-arrow">▼</span>
+        </button>
+
+        <div class="advanced-panel" id="advancedPanel">
+          <div class="sliders-grid">
+            <div class="slider-item" id="si-colors">
+              <label><span>Fargedybde</span><span class="slider-val" id="val-colors">256</span></label>
+              <input type="range" id="slider-colors" min="4" max="256" value="256">
+            </div>
+            <div class="slider-item" id="si-blur">
+              <label><span>Uskarphet</span><span class="slider-val" id="val-blur">0</span></label>
+              <input type="range" id="slider-blur" min="0" max="5" value="0" step="0.5">
+            </div>
+            <div class="slider-item" id="si-quality">
+              <label><span>Kvalitet (PNG komp.)</span><span class="slider-val" id="val-quality">6</span></label>
+              <input type="range" id="slider-quality" min="1" max="9" value="6">
+            </div>
+            <div class="slider-item" id="si-posterize">
+              <label><span>Posterisering</span><span class="slider-val" id="val-posterize">0</span></label>
+              <input type="range" id="slider-posterize" min="0" max="8" value="0">
+            </div>
+            <div class="slider-item" id="si-dither">
+              <label><span>Dithering</span><span class="slider-val" id="val-dither">0</span></label>
+              <input type="range" id="slider-dither" min="0" max="100" value="0">
+            </div>
+          </div>
         </div>
       </div>
       <div class="controls-section">
-        <div class="controls-label">Manuelle justeringer</div>
-        <div class="sliders-grid">
-          <div class="slider-item" id="si-colors">
-            <label><span>Fargedybde</span><span class="slider-val" id="val-colors">256</span></label>
-            <input type="range" id="slider-colors" min="4" max="256" value="256">
-          </div>
+        <div class="controls-label">Skalering</div>
+        <div class="sliders-grid" style="grid-template-columns:1fr;">
           <div class="slider-item" id="si-scale">
-            <label><span>Skalering %</span><span class="slider-val" id="val-scale">75</span></label>
-            <input type="range" id="slider-scale" min="10" max="100" value="75" step="5">
-          </div>
-          <div class="slider-item" id="si-dither">
-            <label><span>Dithering</span><span class="slider-val" id="val-dither">0</span></label>
-            <input type="range" id="slider-dither" min="0" max="100" value="0">
-          </div>
-          <div class="slider-item" id="si-blur">
-            <label><span>Uskarphet</span><span class="slider-val" id="val-blur">0</span></label>
-            <input type="range" id="slider-blur" min="0" max="5" value="0" step="0.5">
-          </div>
-          <div class="slider-item" id="si-posterize">
-            <label><span>Posterisering</span><span class="slider-val" id="val-posterize">0</span></label>
-            <input type="range" id="slider-posterize" min="0" max="8" value="0">
-          </div>
-          <div class="slider-item" id="si-quality">
-            <label><span>Kvalitet (PNG komp.)</span><span class="slider-val" id="val-quality">6</span></label>
-            <input type="range" id="slider-quality" min="1" max="9" value="6">
+            <label><span>Skalering %</span><span class="slider-val" id="val-scale">80</span></label>
+            <input type="range" id="slider-scale" min="10" max="100" value="80" step="5">
           </div>
         </div>
       </div>
@@ -632,9 +710,9 @@
 
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-      <p><strong>Klikk eller slipp</strong> PNG-filer her</p>
+      <p><strong>Klikk eller slipp</strong> bildefiler her</p>
     </div>
-    <input type="file" id="fileInput" accept="image/png" multiple="" hidden="">
+    <input type="file" id="fileInput" accept="image/*" multiple="" hidden="">
 
     <div class="bottom-bar">
       <button class="btn btn-secondary" onclick="simplifyAll()" id="btnSimplify">
@@ -653,7 +731,6 @@
 // ─── State ────────────────────────────────────────────────────────
 const files = [];
 let selectedId = null;
-let preserveColors = false;
 const NUM_WORKERS = Math.min(navigator.hardwareConcurrency || 4, 16);
 document.getElementById('workerCount').textContent = `${NUM_WORKERS} arbeidere`;
 
@@ -662,58 +739,39 @@ let zoomLevel = 1;
 let panX = 0, panY = 0;
 let isPanning = false, panStartX = 0, panStartY = 0;
 
-const LOCKED_SLIDERS = ['si-colors', 'si-dither', 'si-posterize'];
-
 // ─── Presets ──────────────────────────────────────────────────────
 const presets = {
-  light:   { colors: 256, scale: 100, dither: 80, blur: 0,   posterize: 0, quality: 9 },
-  medium:  { colors: 64,  scale: 75,  dither: 50, blur: 0.5, posterize: 2, quality: 6 },
-  extreme: { colors: 16,  scale: 50,  dither: 30, blur: 1,   posterize: 4, quality: 3 },
+  light:     { scale: 80 },
+  medium:    { scale: 50 },
+  efficient: { scale: 30 },
+  extreme:   { scale: 10 },
 };
 
 function setPreset(name) {
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('preset-' + name).classList.add('active');
-  const p = presets[name];
-  // Set only unlocked sliders; locked ones stay at their preserve-colors values
-  if (!preserveColors) {
-    document.getElementById('slider-colors').value = p.colors;
-    document.getElementById('slider-dither').value = p.dither;
-    document.getElementById('slider-posterize').value = p.posterize;
-  }
-  document.getElementById('slider-scale').value = p.scale;
-  document.getElementById('slider-blur').value = p.blur;
-  document.getElementById('slider-quality').value = p.quality;
+  document.getElementById('slider-scale').value = presets[name].scale;
   updateSliderLabels();
   triggerLivePreview();
+  if (selectedId) simplifyCurrent();
 }
 
 function getSettings() {
-  const s = {
+  return {
     colors: +document.getElementById('slider-colors').value,
-    scale: +document.getElementById('slider-scale').value,
+    scale:  +document.getElementById('slider-scale').value,
     dither: +document.getElementById('slider-dither').value,
-    blur: +document.getElementById('slider-blur').value,
+    blur:   +document.getElementById('slider-blur').value,
     posterize: +document.getElementById('slider-posterize').value,
     quality: +document.getElementById('slider-quality').value,
   };
-  if (preserveColors) { s.colors = 256; s.posterize = 0; s.dither = 0; }
-  return s;
 }
 
-function onPreserveColorsToggle() {
-  preserveColors = document.getElementById('togglePreserveColors').checked;
-  LOCKED_SLIDERS.forEach(id => {
-    document.getElementById(id).classList.toggle('locked', preserveColors);
-  });
-  if (preserveColors) {
-    // Immediately set locked slider values without animation
-    document.getElementById('slider-colors').value = 256;
-    document.getElementById('slider-dither').value = 0;
-    document.getElementById('slider-posterize').value = 0;
-    updateSliderLabels();
-  }
-  triggerLivePreview();
+function toggleAdvanced() {
+  const btn = document.getElementById('advancedBtn');
+  const panel = document.getElementById('advancedPanel');
+  const isOpen = btn.classList.toggle('open');
+  panel.classList.toggle('open', isOpen);
 }
 
 function updateSliderLabels() {
@@ -740,16 +798,54 @@ uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
 fileInput.addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
 
+// ─── Global Drag & Drop (hele siden) ──────────────────────────────
+let dragCounter = 0;
+const dragOverlay = document.getElementById('dragOverlay');
+document.addEventListener('dragenter', e => { e.preventDefault(); dragCounter++; if (dragCounter === 1) dragOverlay.classList.add('active'); });
+document.addEventListener('dragleave', () => { dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dragOverlay.classList.remove('active'); } });
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', e => { e.preventDefault(); dragCounter = 0; dragOverlay.classList.remove('active'); uploadZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
 function handleFiles(filesList) {
+  let pending = 0;
+
   for (const f of filesList) {
-    if (f.type !== 'image/png') continue;
+    if (!f.type.startsWith('image/')) continue;
+
     const id = crypto.randomUUID();
-    const url = URL.createObjectURL(f);
-    files.push({ id, name: f.name, originalBlob: f, originalURL: url, originalSize: f.size, simplifiedBlob: null, simplifiedURL: null, newSize: 0, progress: 0 });
+    const baseName = f.name.replace(/\.[^.]+$/, '') + '.png';
+
+    if (f.type === 'image/png') {
+      const url = URL.createObjectURL(f);
+      files.push({ id, name: baseName, originalBlob: f, originalURL: url, originalSize: f.size, simplifiedBlob: null, simplifiedURL: null, newSize: 0, progress: 0 });
+    } else {
+      pending++;
+      const url = URL.createObjectURL(f);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(url);
+          const pngUrl = URL.createObjectURL(blob);
+          files.push({ id, name: baseName, originalBlob: blob, originalURL: pngUrl, originalSize: f.size, simplifiedBlob: null, simplifiedURL: null, newSize: 0, progress: 0 });
+          pending--;
+          if (!selectedId && files.length) selectFile(files[0].id);
+          if (pending === 0) { renderFileList(); if (selectedId) simplifyCurrent(); }
+        }, 'image/png');
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); pending--; };
+      img.src = url;
+    }
   }
-  renderFileList();
-  if (files.length && !selectedId) selectFile(files[0].id);
-  document.getElementById('btnSimplify').disabled = files.length === 0;
+
+  if (pending === 0 && files.length) {
+    renderFileList();
+    if (!selectedId) selectFile(files[0].id);
+    if (selectedId) simplifyCurrent();
+  }
 }
 
 // ─── File List ────────────────────────────────────────────────────
@@ -757,23 +853,27 @@ function renderFileList() {
   const list = document.getElementById('fileList');
   document.getElementById('fileCount').textContent = `${files.length} fil${files.length !== 1 ? 'er' : ''}`;
   if (!files.length) {
-    list.innerHTML = `<div class="empty-list"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><p>100% lokalt og privat,<br>optimalisert for ytelse!</p></div>`;
+    list.innerHTML = '<div class="empty-list"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><p>100% lokalt og privat,<br>optimalisert for ytelse!</p></div>';
     return;
   }
-  list.innerHTML = files.map(f => `
+  list.innerHTML = files.map(f => {
+    const savingsHtml = f.simplifiedBlob
+      ? `<div class="file-savings">&rarr; ${formatBytes(f.newSize)} (&minus;${Math.round((1 - f.newSize / f.originalSize) * 100)}%)</div>`
+      : '';
+    return `
     <div class="file-item ${f.id === selectedId ? 'selected' : ''}" onclick="selectFile('${f.id}')">
       <img class="file-thumb" src="${f.simplifiedURL || f.originalURL}" />
       <div class="file-meta">
         <div class="file-name" title="${f.name}">${f.name}</div>
         <div class="file-size">${formatBytes(f.originalSize)}</div>
-        ${f.simplifiedBlob ? `<div class="file-savings">→ ${formatBytes(f.newSize)} (−${Math.round((1 - f.newSize / f.originalSize) * 100)}%)</div>` : ''}
+        ${savingsHtml}
       </div>
       <div class="file-progress">
-        <div class="progress-bar-bg"><div class="progress-bar-fill ${f.progress >= 100 ? 'done' : ''}" style="width:${f.progress}%"></div></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill ${f.progress >= 100 ? 'done' : ''}" style="width:${Math.round(f.progress)}%"></div></div>
         <div class="progress-pct ${f.progress >= 100 ? 'done' : ''}">${Math.round(f.progress)}%</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function selectFile(id) {
@@ -921,44 +1021,22 @@ function generateLivePreview(f, srcImg) {
   cR.getContext('2d').drawImage(offscreen, 0, 0);
 }
 
-// ─── Image Processing ─────────────────────────────────────────────
-async function processImage(file, settings, onProgress) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        onProgress(10);
-        const sw = Math.round(img.width * settings.scale / 100);
-        const sh = Math.round(img.height * settings.scale / 100);
-        const canvas = document.createElement('canvas');
-        canvas.width = sw; canvas.height = sh;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, sw, sh);
-        onProgress(25);
-        let data = new Uint8ClampedArray(ctx.getImageData(0, 0, sw, sh).data);
-        if (settings.blur > 0) { data = boxBlur(data, sw, sh, Math.round(settings.blur * 2)); onProgress(40); }
-        if (settings.posterize > 0) {
-          const levels = Math.max(2, 8 - settings.posterize);
-          const step = 255 / (levels - 1);
-          for (let i = 0; i < data.length; i += 4) {
-            data[i]=Math.round(Math.round(data[i]/step)*step);
-            data[i+1]=Math.round(Math.round(data[i+1]/step)*step);
-            data[i+2]=Math.round(Math.round(data[i+2]/step)*step);
-          }
-          onProgress(55);
-        }
-        if (settings.colors < 256) { data = quantizeColors(data, settings.colors, settings.dither / 100, sw, sh); onProgress(80); }
-        else { onProgress(80); }
-        ctx.putImageData(new ImageData(new Uint8ClampedArray(data), sw, sh), 0, 0);
-        onProgress(90);
-        canvas.toBlob(blob => { onProgress(100); resolve(blob); }, 'image/png');
-      } catch (err) { reject(err); }
-    };
-    img.onerror = reject;
-    img.src = file.originalURL;
-  });
+// ─── Progress Helpers ────────────────────────────────────────────
+function setWorkerBusy(busy) {
+  document.querySelector('.worker-dot').classList.toggle('busy', busy);
+}
+function updateProgressColor(pct) {
+  const gpf = document.getElementById('globalProgressFill');
+  let color;
+  if (pct < 40)      color = '#ef4444'; // rød
+  else if (pct < 75) color = 'var(--accent)'; // orange
+  else               color = 'var(--green)';  // grønn
+  gpf.style.background = color;
+  gpf.style.width = pct + '%';
 }
 
+// ─── Worker Pool ──────────────────────────────────────────────────
+const WORKER_CODE = `
 function boxBlur(data, w, h, radius) {
   if (radius < 1) return data;
   const out = new Uint8ClampedArray(data);
@@ -1017,6 +1095,127 @@ function quantizeColors(data, maxColors, ditherAmount, imgW, imgH) {
   return out;
 }
 
+self.onmessage = function(e) {
+  const { imageData, width, height, settings } = e.data;
+  let data = new Uint8ClampedArray(imageData);
+
+  postMessage({ type: 'progress', pct: 20 });
+
+  if (settings.blur > 0) {
+    data = boxBlur(data, width, height, Math.round(settings.blur * 2));
+  }
+  postMessage({ type: 'progress', pct: 45 });
+
+  if (settings.posterize > 0) {
+    const levels = Math.max(2, 8 - settings.posterize);
+    const step = 255 / (levels - 1);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i]  = Math.round(Math.round(data[i]  / step) * step);
+      data[i+1]= Math.round(Math.round(data[i+1]/ step) * step);
+      data[i+2]= Math.round(Math.round(data[i+2]/ step) * step);
+    }
+  }
+  postMessage({ type: 'progress', pct: 65 });
+
+  if (settings.colors < 256) {
+    data = quantizeColors(data, settings.colors, settings.dither / 100, width, height);
+  }
+  postMessage({ type: 'progress', pct: 90 });
+
+  postMessage({ type: 'done', imageData: data.buffer, width, height }, [data.buffer]);
+};
+`;
+
+const workerBlob = new Blob([WORKER_CODE], { type: 'application/javascript' });
+const workerBlobURL = URL.createObjectURL(workerBlob);
+
+// Pool av gjenbrukbare workers
+const workerPool = [];
+const workerBusy = [];
+for (let i = 0; i < NUM_WORKERS; i++) {
+  workerPool.push(new Worker(workerBlobURL));
+  workerBusy.push(false);
+}
+
+function getIdleWorker() {
+  return workerPool.findIndex((_,i) => !workerBusy[i]);
+}
+
+// ─── Image Processing ─────────────────────────────────────────────
+async function processImage(file, settings, onProgress) {
+  // 1. Tegn og skaler bildet i main-thread (krever DOM)
+  const bitmap = await createImageBitmap(await fetch(file.originalURL).then(r => r.blob()));
+  const sw = Math.round(bitmap.width  * settings.scale / 100);
+  const sh = Math.round(bitmap.height * settings.scale / 100);
+
+  const canvas = new OffscreenCanvas(sw, sh);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0, sw, sh);
+  bitmap.close();
+  const imageData = ctx.getImageData(0, 0, sw, sh);
+  onProgress(15);
+
+  // 2. Send pikseldata til en ledig worker
+  const pixelBuffer = imageData.data.buffer.slice(0);
+  const result = await new Promise((resolve, reject) => {
+    function tryDispatch() {
+      const idx = getIdleWorker();
+      if (idx === -1) { setTimeout(tryDispatch, 10); return; }
+      workerBusy[idx] = true;
+      const worker = workerPool[idx];
+      worker.onmessage = (e) => {
+        if (e.data.type === 'progress') { onProgress(15 + Math.round(e.data.pct * 0.75)); return; }
+        workerBusy[idx] = false;
+        resolve(e.data);
+      };
+      worker.onerror = (err) => { workerBusy[idx] = false; reject(err); };
+      worker.postMessage({ imageData: pixelBuffer, width: sw, height: sh, settings }, [pixelBuffer]);
+    }
+    tryDispatch();
+  });
+
+  // 3. Skriv tilbake og eksporter PNG
+  const outData = new ImageData(new Uint8ClampedArray(result.imageData), result.width, result.height);
+  const outCanvas = new OffscreenCanvas(result.width, result.height);
+  outCanvas.getContext('2d').putImageData(outData, 0, 0);
+  onProgress(95);
+  const blob = await outCanvas.convertToBlob({ type: 'image/png' });
+  onProgress(100);
+  return blob;
+}
+
+// ─── Simplify Current ─────────────────────────────────────────────
+async function simplifyCurrent() {
+  if (!selectedId) return;
+  const f = files.find(x => x.id === selectedId);
+  if (!f) return;
+  const settings = getSettings();
+
+  f.progress = 0; f.simplifiedBlob = null; f.simplifiedURL = null; f.newSize = 0;
+  renderFileList();
+
+  const gp = document.getElementById('globalProgress');
+  gp.style.display = 'block';
+  setWorkerBusy(true);
+
+  const blob = await processImage(f, settings, pct => {
+    f.progress = pct;
+    updateProgressColor(pct);
+    renderFileList();
+  });
+
+  f.simplifiedBlob = blob;
+  f.simplifiedURL = URL.createObjectURL(blob);
+  f.newSize = blob.size;
+  f.progress = 100;
+  renderFileList();
+  updateSplitPreview();
+
+  updateProgressColor(100);
+  setTimeout(() => { gp.style.display = 'none'; document.getElementById('globalProgressFill').style.width = '0%'; setWorkerBusy(false); }, 1000);
+  document.getElementById('btnExport').disabled = false;
+}
+
 // ─── Parallel Processing ──────────────────────────────────────────
 async function simplifyAll() {
   const settings = getSettings();
@@ -1026,30 +1225,25 @@ async function simplifyAll() {
   const gp = document.getElementById('globalProgress');
   const gpf = document.getElementById('globalProgressFill');
   gp.style.display = 'block';
+  setWorkerBusy(true);
   files.forEach(f => { f.progress=0; f.simplifiedBlob=null; f.simplifiedURL=null; f.newSize=0; });
   renderFileList();
 
   async function processOne(f) {
     const blob = await processImage(f, settings, pct => {
       f.progress = pct; renderFileList();
-      gpf.style.width = (files.reduce((s,x)=>s+x.progress,0)/files.length)+'%';
+      const avg = files.reduce((s,x)=>s+x.progress,0)/files.length;
+      updateProgressColor(avg);
     });
     f.simplifiedBlob=blob; f.simplifiedURL=URL.createObjectURL(blob); f.newSize=blob.size; f.progress=100;
     renderFileList();
     if(f.id===selectedId)updateSplitPreview();
   }
 
-  const queue=[...files]; const running=new Set();
-  await new Promise(resolve=>{
-    function next(){
-      if(!queue.length&&!running.size){resolve();return;}
-      while(running.size<NUM_WORKERS&&queue.length){const f=queue.shift();const p=processOne(f).then(()=>{running.delete(p);next();});running.add(p);}
-    }
-    next();
-  });
+  await Promise.all(files.map(f => processOne(f)));
 
-  gpf.style.width='100%';
-  setTimeout(()=>{gp.style.display='none';gpf.style.width='0%';},1000);
+  updateProgressColor(100);
+  setTimeout(()=>{ gp.style.display='none'; document.getElementById('globalProgressFill').style.width='0%'; setWorkerBusy(false); },1000);
   btn.disabled=false;
   btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Forenkle alle';
   document.getElementById('btnExport').disabled=false;
@@ -1058,8 +1252,37 @@ async function simplifyAll() {
 
 // ─── Export ───────────────────────────────────────────────────────
 async function exportAll() {
+  // Forenkle alle filer som ikke allerede er forenklet
+  const unsimplified = files.filter(f => !f.simplifiedBlob);
+  if (unsimplified.length) await simplifyAll();
   const simplified = files.filter(f => f.simplifiedBlob);
   if (!simplified.length) return;
+
+  // File System Access API (Chrome/Edge) — lar brukeren velge mappe
+  if (window.showDirectoryPicker) {
+    let dirHandle;
+    try {
+      dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch (e) {
+      if (e.name === 'AbortError') return; // bruker avbrøt
+      // Fallback ved feil
+      await exportFallback(simplified);
+      return;
+    }
+    for (const f of simplified) {
+      const fileHandle = await dirHandle.getFileHandle(f.name, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(f.simplifiedBlob);
+      await writable.close();
+    }
+    return;
+  }
+
+  // Firefox / andre: standard nedlasting én etter én
+  await exportFallback(simplified);
+}
+
+async function exportFallback(simplified) {
   for (const f of simplified) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(f.simplifiedBlob);
