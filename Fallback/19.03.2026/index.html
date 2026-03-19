@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="nb"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teksturforenkler</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --text: #ffffff;
+    --muted: #94a3b8;
+    --card: #0f172a;
+    --border: #334155;
+    --border-soft: #1e293b;
+    --hover: rgba(148,163,184,0.10);
+    --btn-bg: rgba(148,163,184,0.12);
+    --shadow: 0 1px 3px rgba(0,0,0,0.35);
+    --accent: #f97316;
+    --accent-glow: rgba(249,115,22,0.14);
+    --accent-border: rgba(249,115,22,0.42);
+    --green: #16a34a;
+    --green-bg: rgba(22,163,74,0.14);
+    --green-border: rgba(22,163,74,0.42);
+    --blue: #2563eb;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  .header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.01em;
+  }
+  .worker-badge {
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: var(--btn-bg);
+    padding: 0.3rem 0.65rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .worker-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    transition: background 0.2s;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  @keyframes pulse-busy { 0%,100%{background:var(--accent);opacity:1} 50%{background:var(--green);opacity:0.7} }
+  .worker-dot.busy { animation: pulse-busy 0.4s infinite; }
+
+  /* ─── GLOBAL PROGRESS ─── */
+  .global-progress { height: 3px; background: var(--border-soft); display: none; }
+  .global-progress-fill {
+    height: 100%;
+    background: #ef4444;
+    transition: width 0.3s, background 0.4s;
+    width: 0%;
+  }
+
+  /* ─── LAYOUT ─── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    height: calc(100vh - 53px);
+  }
+
+  .left-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ─── SPLIT PREVIEW ─── */
+  .preview-area {
+    flex: 1;
+    position: relative;
+    background:
+      repeating-conic-gradient(#111827 0% 25%, #0c1322 0% 50%) 0 0 / 18px 18px;
+    min-height: 260px;
+    overflow: hidden;
+    display: flex;
+    cursor: default;
+  }
+
+  .preview-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .preview-side canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    transition: opacity 0.15s;
+  }
+
+  .preview-divider {
+    width: 2px;
+    background: var(--accent);
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+    box-shadow: 0 0 10px rgba(249,115,22,0.25);
+  }
+  .preview-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 26px; height: 26px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+  }
+  .preview-divider::after {
+    content: '↔';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 11px;
+    color: #000;
+    font-weight: 800;
+    z-index: 1;
+  }
+
+  .side-label {
+    position: absolute;
+    top: 0.5rem;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .preview-side:first-child .side-label { left: 0.5rem; }
+  .preview-side:last-child .side-label { right: 0.5rem; }
+
+  .preview-placeholder {
+    text-align: center;
+    color: var(--muted);
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 5;
+  }
+  .preview-placeholder svg { margin-bottom: 0.6rem; opacity: 0.25; }
+  .preview-placeholder p { font-size: 0.85rem; }
+
+  .preview-info {
+    position: absolute;
+    bottom: 0.6rem; left: 0.6rem;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    padding: 0.3rem 0.7rem;
+    border-radius: 0.4rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+    display: none;
+    z-index: 11;
+  }
+  .zoom-hint {
+    position: absolute;
+    bottom: 0.6rem; right: 0.6rem;
+    background: rgba(0,0,0,0.5);
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.35rem;
+    font-size: 0.65rem;
+    color: var(--muted);
+    z-index: 11;
+    display: none;
+    pointer-events: none;
+  }
+
+  .split-hidden { display: none !important; }
+
+  /* ─── CONTROLS ─── */
+  .controls {
+    border-top: 1px solid var(--border);
+    background: var(--card);
+    padding: 0.9rem 1.15rem;
+  }
+  .controls-section { margin-bottom: 0.9rem; }
+  .controls-section:last-child { margin-bottom: 0; }
+  .controls-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 0.55rem;
+  }
+
+  /* ─── PRESET BUTTONS ─── */
+  .preset-group { display: flex; gap: 0.45rem; }
+  .preset-btn {
+    flex: 1;
+    padding: 0.55rem 0.5rem;
+    background: var(--btn-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: center;
+  }
+  .preset-btn:hover { border-color: var(--muted); }
+  .preset-btn.active {
+    border-color: var(--accent-border);
+    background: var(--accent-glow);
+    box-shadow: 0 0 0 1px rgba(249,115,22,0.12) inset;
+  }
+  .preset-btn small {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+
+  /* ─── TOGGLE ─── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--btn-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+  .toggle-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--text);
+  }
+  .toggle-label svg { color: var(--muted); flex-shrink: 0; }
+  .toggle-switch {
+    position: relative;
+    width: 38px; height: 22px;
+    cursor: pointer;
+    display: inline-block;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 11px;
+    transition: background 0.2s;
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-track {
+    background: var(--green);
+  }
+  .toggle-switch input:checked + .toggle-track::after {
+    transform: translateX(16px);
+    background: #fff;
+  }
+
+  /* ─── SLIDERS ─── */
+  .sliders-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem 1.1rem;
+  }
+  .slider-item { transition: opacity 0.2s; }
+  .slider-item.locked { opacity: 0.3; pointer-events: none; }
+  .slider-item label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 0.3rem;
+  }
+  .slider-item label .slider-val {
+    color: var(--accent);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .slider-item input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .slider-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .slider-item input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+  .slider-item input[type="range"]::-moz-range-thumb {
+    width: 13px; height: 13px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* ─── RIGHT PANEL ─── */
+  .right-panel {
+    border-left: 1px solid var(--border);
+    background: var(--card);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-header h2 {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .file-count {
+    font-size: 0.68rem;
+    color: var(--muted);
+    background: var(--btn-bg);
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.3rem;
+    border: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .file-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.4rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .file-list::-webkit-scrollbar { width: 5px; }
+  .file-list::-webkit-scrollbar-track { background: transparent; }
+  .file-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.1s;
+    border: 1px solid transparent;
+  }
+  .file-item:hover { background: var(--hover); }
+  .file-item.selected {
+    background: var(--accent-glow);
+    border-color: var(--accent-border);
+  }
+  .file-thumb {
+    width: 38px; height: 38px;
+    border-radius: 0.35rem;
+    object-fit: cover;
+    background: var(--border-soft);
+    flex-shrink: 0;
+    image-rendering: pixelated;
+    border: 1px solid var(--border);
+  }
+  .file-meta { flex: 1; min-width: 0; }
+  .file-name {
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-size {
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-top: 0.1rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .file-savings {
+    font-size: 0.68rem;
+    color: var(--green);
+    margin-top: 0.05rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .file-savings.est { opacity: 0.6; font-style: italic; }
+
+  .file-progress { width: 48px; flex-shrink: 0; text-align: right; }
+  .progress-bar-bg {
+    width: 100%; height: 3px;
+    background: var(--border-soft);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.2rem;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .progress-bar-fill.done { background: var(--green); }
+  .progress-pct {
+    font-size: 0.62rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .progress-pct.done { color: var(--green); }
+
+  .upload-zone {
+    margin: 0.4rem;
+    padding: 1.4rem 0.8rem;
+    border: 2px dashed var(--border);
+    border-radius: 0.6rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .upload-zone svg { margin-bottom: 0.35rem; opacity: 0.4; }
+  .upload-zone p { font-size: 0.78rem; color: var(--muted); }
+  .upload-zone p strong { color: var(--accent); }
+
+  .bottom-bar {
+    padding: 0.6rem 0.7rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 0.4rem;
+  }
+  .btn {
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    flex: 1;
+  }
+  .btn-secondary {
+    background: var(--btn-bg);
+    color: var(--text);
+  }
+  .btn-secondary:hover { background: var(--hover); border-color: var(--muted); }
+  .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: #fb923c; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .empty-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 1.2rem;
+    text-align: center;
+    line-height: 1.55;
+  }
+  .empty-list svg { margin-bottom: 0.5rem; opacity: 0.3; }
+
+  /* ─── GLOBAL DRAG OVERLAY ─── */
+  .drag-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(11,18,32,0.82);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: none;
+    border: 3px dashed var(--accent);
+    border-radius: 0.75rem;
+    margin: 8px;
+    box-sizing: border-box;
+  }
+  .drag-overlay.active { display: flex; }
+  .drag-overlay svg { opacity: 0.7; color: var(--accent); }
+  .drag-overlay p { font-size: 1.1rem; font-weight: 700; color: var(--accent); letter-spacing: -0.01em; }
+  .drag-overlay small { font-size: 0.78rem; color: var(--muted); }
+
+  /* ─── AVANSERT KNAPP ─── */
+  .advanced-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--btn-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    text-align: left;
+  }
+  .advanced-btn:hover { border-color: var(--muted); color: var(--text); }
+  .advanced-btn.open {
+    border-color: var(--accent-border);
+    background: var(--accent-glow);
+    color: var(--text);
+  }
+  .advanced-btn .adv-label { display: flex; align-items: center; gap: 0.45rem; }
+  .advanced-btn .adv-arrow {
+    font-size: 0.65rem;
+    transition: transform 0.2s;
+    opacity: 0.6;
+  }
+  .advanced-btn.open .adv-arrow { transform: rotate(180deg); opacity: 1; }
+
+  .advanced-panel {
+    display: none;
+    margin-top: 0.6rem;
+  }
+  .advanced-panel.open { display: block; }
+</style>
+</head>
+<body>
+
+<div class="drag-overlay" id="dragOverlay">
+  <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+  <p>Slipp bildefiler her</p>
+  <small>PNG, JPG, WEBP, BMP, GIF og flere</small>
+</div>
+
+<div class="header">
+  <h1 title="Denne nettsiden er utviklet av Mathias Weiseth Gran, BIM Tekniker">GranBIM - Teksturforenkler</h1>
+  <div class="worker-badge">
+    <div class="worker-dot"></div>
+    <span id="workerCount">16 arbeidere</span>
+  </div>
+</div>
+
+<div class="global-progress" id="globalProgress">
+  <div class="global-progress-fill" id="globalProgressFill"></div>
+</div>
+
+<div class="main">
+  <div class="left-panel">
+    <div class="preview-area" id="previewArea">
+      <div class="preview-placeholder" id="previewPlaceholder">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+        <p>Last opp PNG-teksturer for forhåndsvisning</p>
+      </div>
+
+      <div class="preview-side split-hidden" id="splitLeft">
+        <span class="side-label">Original</span>
+        <canvas id="canvasLeft"></canvas>
+      </div>
+      <div class="preview-divider split-hidden" id="splitDivider"></div>
+      <div class="preview-side split-hidden" id="splitRight">
+        <span class="side-label">Forenklet</span>
+        <canvas id="canvasRight"></canvas>
+      </div>
+
+      <div class="preview-info" id="previewInfo"></div>
+      <div class="zoom-hint" id="zoomHint">Scroll for å zoome</div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-section">
+        <div class="controls-label">Forhåndsinnstilling</div>
+        <div class="preset-group">
+          <button class="preset-btn active" onclick="setPreset('light')" id="preset-light">
+            Lett <small>80% skalering</small>
+          </button>
+          <button class="preset-btn" onclick="setPreset('medium')" id="preset-medium">
+            Middels <small>50% skalering</small>
+          </button>
+          <button class="preset-btn" onclick="setPreset('efficient')" id="preset-efficient">
+            Effektiv <small>30% skalering</small>
+          </button>
+          <button class="preset-btn" onclick="setPreset('extreme')" id="preset-extreme">
+            Ekstrem <small>10% skalering</small>
+          </button>
+        </div>
+
+        <button class="advanced-btn" id="advancedBtn" onclick="toggleAdvanced()">
+          <span class="adv-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07M4.93 4.93a10 10 0 0 0 14.14 14.14"></path><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line></svg>
+            Kontrollpanel
+          </span>
+          <span class="adv-arrow">▼</span>
+        </button>
+
+        <div class="advanced-panel" id="advancedPanel">
+          <div class="sliders-grid">
+            <div class="slider-item" id="si-colors">
+              <label><span>Fargedybde</span><span class="slider-val" id="val-colors">256</span></label>
+              <input type="range" id="slider-colors" min="4" max="256" value="256">
+            </div>
+            <div class="slider-item" id="si-blur">
+              <label><span>Uskarphet</span><span class="slider-val" id="val-blur">0</span></label>
+              <input type="range" id="slider-blur" min="0" max="5" value="0" step="0.5">
+            </div>
+            <div class="slider-item" id="si-quality">
+              <label><span>Kvalitet (PNG komp.)</span><span class="slider-val" id="val-quality">6</span></label>
+              <input type="range" id="slider-quality" min="1" max="9" value="6">
+            </div>
+            <div class="slider-item" id="si-posterize">
+              <label><span>Posterisering</span><span class="slider-val" id="val-posterize">0</span></label>
+              <input type="range" id="slider-posterize" min="0" max="8" value="0">
+            </div>
+            <div class="slider-item" id="si-dither">
+              <label><span>Dithering</span><span class="slider-val" id="val-dither">0</span></label>
+              <input type="range" id="slider-dither" min="0" max="100" value="0">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="controls-section">
+        <div class="controls-label">Skalering</div>
+        <div class="sliders-grid" style="grid-template-columns:1fr;">
+          <div class="slider-item" id="si-scale">
+            <label><span>Skalering %</span><span class="slider-val" id="val-scale">80</span></label>
+            <input type="range" id="slider-scale" min="10" max="100" value="80" step="5">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="panel-header">
+      <h2>Teksturer</h2>
+      <span class="file-count" id="fileCount">0 filer</span>
+    </div>
+
+    <div class="file-list" id="fileList">
+      <div class="empty-list" id="emptyList">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        <p>100% lokalt og privat,<br>optimalisert for ytelse!</p>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+      <p><strong>Klikk eller slipp</strong> bildefiler her</p>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple="" hidden="">
+
+    <div class="bottom-bar">
+      <button class="btn btn-secondary" onclick="simplifyAll()" id="btnSimplify">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        Forenkle alle
+      </button>
+      <button class="btn btn-primary" onclick="exportAll()" id="btnExport">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Eksporter
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────
+const files = [];
+let selectedId = null;
+const NUM_WORKERS = Math.min(navigator.hardwareConcurrency || 4, 16);
+document.getElementById('workerCount').textContent = `${NUM_WORKERS} arbeidere`;
+
+// Zoom state
+let zoomLevel = 1;
+let panX = 0, panY = 0;
+let isPanning = false, panStartX = 0, panStartY = 0;
+
+// ─── Presets ──────────────────────────────────────────────────────
+const presets = {
+  light:     { scale: 80 },
+  medium:    { scale: 50 },
+  efficient: { scale: 30 },
+  extreme:   { scale: 10 },
+};
+
+function setPreset(name) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('preset-' + name).classList.add('active');
+  document.getElementById('slider-scale').value = presets[name].scale;
+  updateSliderLabels();
+  triggerLivePreview();
+  if (selectedId) simplifyCurrent();
+}
+
+function getSettings() {
+  return {
+    colors: +document.getElementById('slider-colors').value,
+    scale:  +document.getElementById('slider-scale').value,
+    dither: +document.getElementById('slider-dither').value,
+    blur:   +document.getElementById('slider-blur').value,
+    posterize: +document.getElementById('slider-posterize').value,
+    quality: +document.getElementById('slider-quality').value,
+  };
+}
+
+function toggleAdvanced() {
+  const btn = document.getElementById('advancedBtn');
+  const panel = document.getElementById('advancedPanel');
+  const isOpen = btn.classList.toggle('open');
+  panel.classList.toggle('open', isOpen);
+}
+
+function updateSliderLabels() {
+  ['colors','scale','dither','blur','posterize','quality'].forEach(k => {
+    document.getElementById('val-' + k).textContent = document.getElementById('slider-' + k).value;
+  });
+}
+
+// Sliders: update label live, but only trigger preview on mouseup/touchend
+document.querySelectorAll('.sliders-grid input[type="range"]').forEach(slider => {
+  slider.addEventListener('input', updateSliderLabels);
+  slider.addEventListener('change', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    triggerLivePreview();
+  });
+});
+
+// ─── File Upload ──────────────────────────────────────────────────
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
+
+// ─── Global Drag & Drop (hele siden) ──────────────────────────────
+let dragCounter = 0;
+const dragOverlay = document.getElementById('dragOverlay');
+document.addEventListener('dragenter', e => { e.preventDefault(); dragCounter++; if (dragCounter === 1) dragOverlay.classList.add('active'); });
+document.addEventListener('dragleave', () => { dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dragOverlay.classList.remove('active'); } });
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', e => { e.preventDefault(); dragCounter = 0; dragOverlay.classList.remove('active'); uploadZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+function handleFiles(filesList) {
+  let pending = 0;
+
+  for (const f of filesList) {
+    if (!f.type.startsWith('image/')) continue;
+
+    const id = crypto.randomUUID();
+    const baseName = f.name.replace(/\.[^.]+$/, '') + '.png';
+
+    if (f.type === 'image/png') {
+      const url = URL.createObjectURL(f);
+      files.push({ id, name: baseName, originalBlob: f, originalURL: url, originalSize: f.size, simplifiedBlob: null, simplifiedURL: null, newSize: 0, progress: 0 });
+    } else {
+      pending++;
+      const url = URL.createObjectURL(f);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(url);
+          const pngUrl = URL.createObjectURL(blob);
+          files.push({ id, name: baseName, originalBlob: blob, originalURL: pngUrl, originalSize: f.size, simplifiedBlob: null, simplifiedURL: null, newSize: 0, progress: 0 });
+          pending--;
+          if (!selectedId && files.length) selectFile(files[0].id);
+          if (pending === 0) { renderFileList(); if (selectedId) simplifyCurrent(); }
+        }, 'image/png');
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); pending--; };
+      img.src = url;
+    }
+  }
+
+  if (pending === 0 && files.length) {
+    renderFileList();
+    if (!selectedId) selectFile(files[0].id);
+    if (selectedId) simplifyCurrent();
+  }
+}
+
+// ─── File List ────────────────────────────────────────────────────
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  document.getElementById('fileCount').textContent = `${files.length} fil${files.length !== 1 ? 'er' : ''}`;
+  if (!files.length) {
+    list.innerHTML = '<div class="empty-list"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><p>100% lokalt og privat,<br>optimalisert for ytelse!</p></div>';
+    return;
+  }
+  list.innerHTML = files.map(f => {
+    const savingsHtml = f.simplifiedBlob
+      ? `<div class="file-savings">&rarr; ${formatBytes(f.newSize)} (&minus;${Math.round((1 - f.newSize / f.originalSize) * 100)}%)</div>`
+      : '';
+    return `
+    <div class="file-item ${f.id === selectedId ? 'selected' : ''}" onclick="selectFile('${f.id}')">
+      <img class="file-thumb" src="${f.simplifiedURL || f.originalURL}" />
+      <div class="file-meta">
+        <div class="file-name" title="${f.name}">${f.name}</div>
+        <div class="file-size">${formatBytes(f.originalSize)}</div>
+        ${savingsHtml}
+      </div>
+      <div class="file-progress">
+        <div class="progress-bar-bg"><div class="progress-bar-fill ${f.progress >= 100 ? 'done' : ''}" style="width:${Math.round(f.progress)}%"></div></div>
+        <div class="progress-pct ${f.progress >= 100 ? 'done' : ''}">${Math.round(f.progress)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectFile(id) {
+  selectedId = id;
+  zoomLevel = 1; panX = 0; panY = 0;
+  renderFileList();
+  updateSplitPreview();
+}
+
+// ─── Zoom & Pan ───────────────────────────────────────────────────
+const previewArea = document.getElementById('previewArea');
+
+previewArea.addEventListener('wheel', e => {
+  if (!selectedId) return;
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  zoomLevel = Math.max(0.25, Math.min(10, zoomLevel * delta));
+  applyZoom();
+}, { passive: false });
+
+previewArea.addEventListener('mousedown', e => {
+  if (!selectedId || zoomLevel <= 1) return;
+  isPanning = true;
+  panStartX = e.clientX - panX;
+  panStartY = e.clientY - panY;
+  previewArea.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  panX = e.clientX - panStartX;
+  panY = e.clientY - panStartY;
+  applyZoom();
+});
+window.addEventListener('mouseup', () => {
+  if (isPanning) {
+    isPanning = false;
+    previewArea.style.cursor = zoomLevel > 1 ? 'grab' : 'default';
+  }
+});
+
+function applyZoom() {
+  const cL = document.getElementById('canvasLeft');
+  const cR = document.getElementById('canvasRight');
+  const t = `scale(${zoomLevel}) translate(${panX/zoomLevel}px, ${panY/zoomLevel}px)`;
+  cL.style.transform = t;
+  cR.style.transform = t;
+  previewArea.style.cursor = zoomLevel > 1 ? 'grab' : 'default';
+  document.getElementById('zoomHint').style.display = selectedId ? '' : 'none';
+}
+
+// ─── Split Preview ────────────────────────────────────────────────
+function updateSplitPreview() {
+  const f = files.find(x => x.id === selectedId);
+  const ph = document.getElementById('previewPlaceholder');
+  const left = document.getElementById('splitLeft');
+  const right = document.getElementById('splitRight');
+  const divider = document.getElementById('splitDivider');
+  const info = document.getElementById('previewInfo');
+  const hint = document.getElementById('zoomHint');
+
+  if (!f) {
+    ph.style.display = ''; left.classList.add('split-hidden'); right.classList.add('split-hidden'); divider.classList.add('split-hidden');
+    info.style.display = 'none'; hint.style.display = 'none';
+    return;
+  }
+
+  ph.style.display = 'none';
+  left.classList.remove('split-hidden');
+  right.classList.remove('split-hidden');
+  divider.classList.remove('split-hidden');
+  hint.style.display = '';
+
+  // Draw original on left canvas
+  const img = new Image();
+  img.onload = () => {
+    drawOnCanvas('canvasLeft', img, img.width, img.height);
+    // Right side: simplified if available, else generate live
+    if (f.simplifiedURL) {
+      const img2 = new Image();
+      img2.onload = () => {
+        drawOnCanvas('canvasRight', img2, img2.width, img2.height);
+        info.textContent = `${f.name} — Original: ${formatBytes(f.originalSize)} → Forenklet: ${formatBytes(f.newSize)} (−${Math.round((1 - f.newSize / f.originalSize) * 100)}%)`;
+        info.style.display = '';
+      };
+      img2.src = f.simplifiedURL;
+    } else {
+      generateLivePreview(f, img);
+      info.textContent = `${f.name} — ${formatBytes(f.originalSize)} — Forhåndsvisning`;
+      info.style.display = '';
+    }
+    applyZoom();
+  };
+  img.src = f.originalURL;
+}
+
+function drawOnCanvas(canvasId, img, w, h) {
+  const c = document.getElementById(canvasId);
+  c.width = w; c.height = h;
+  c.style.maxWidth = '100%';
+  c.style.maxHeight = '100%';
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+}
+
+let livePreviewTimer = null;
+function triggerLivePreview() {
+  clearTimeout(livePreviewTimer);
+  livePreviewTimer = setTimeout(() => {
+    const f = files.find(x => x.id === selectedId);
+    if (!f) return;
+    const img = new Image();
+    img.onload = () => generateLivePreview(f, img);
+    img.src = f.originalURL;
+  }, 80);
+}
+
+function generateLivePreview(f, srcImg) {
+  const settings = getSettings();
+  const sw = Math.round(srcImg.width * settings.scale / 100);
+  const sh = Math.round(srcImg.height * settings.scale / 100);
+  const offscreen = document.createElement('canvas');
+  offscreen.width = sw; offscreen.height = sh;
+  const ctx = offscreen.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(srcImg, 0, 0, sw, sh);
+
+  let data = new Uint8ClampedArray(ctx.getImageData(0, 0, sw, sh).data);
+  if (settings.blur > 0) data = boxBlur(data, sw, sh, Math.round(settings.blur * 2));
+  if (settings.posterize > 0) {
+    const levels = Math.max(2, 8 - settings.posterize);
+    const step = 255 / (levels - 1);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i]   = Math.round(Math.round(data[i]   / step) * step);
+      data[i+1] = Math.round(Math.round(data[i+1] / step) * step);
+      data[i+2] = Math.round(Math.round(data[i+2] / step) * step);
+    }
+  }
+  if (settings.colors < 256) data = quantizeColors(data, settings.colors, settings.dither / 100, sw, sh);
+
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(data), sw, sh), 0, 0);
+
+  const cR = document.getElementById('canvasRight');
+  cR.width = sw; cR.height = sh;
+  cR.style.maxWidth = '100%';
+  cR.style.maxHeight = '100%';
+  cR.getContext('2d').drawImage(offscreen, 0, 0);
+}
+
+// ─── Progress Helpers ────────────────────────────────────────────
+function setWorkerBusy(busy) {
+  document.querySelector('.worker-dot').classList.toggle('busy', busy);
+}
+function updateProgressColor(pct) {
+  const gpf = document.getElementById('globalProgressFill');
+  let color;
+  if (pct < 40)      color = '#ef4444'; // rød
+  else if (pct < 75) color = 'var(--accent)'; // orange
+  else               color = 'var(--green)';  // grønn
+  gpf.style.background = color;
+  gpf.style.width = pct + '%';
+}
+
+// ─── Worker Pool ──────────────────────────────────────────────────
+const WORKER_CODE = `
+function boxBlur(data, w, h, radius) {
+  if (radius < 1) return data;
+  const out = new Uint8ClampedArray(data);
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++) {
+    let r=0,g=0,b=0,a=0,c=0;
+    for (let dx=-radius;dx<=radius;dx++) { const nx=Math.min(w-1,Math.max(0,x+dx)); const i=(y*w+nx)*4; r+=data[i];g+=data[i+1];b+=data[i+2];a+=data[i+3];c++; }
+    const i=(y*w+x)*4; out[i]=r/c;out[i+1]=g/c;out[i+2]=b/c;out[i+3]=a/c;
+  }
+  const out2 = new Uint8ClampedArray(out);
+  for (let x=0;x<w;x++) for (let y=0;y<h;y++) {
+    let r=0,g=0,b=0,a=0,c=0;
+    for (let dy=-radius;dy<=radius;dy++) { const ny=Math.min(h-1,Math.max(0,y+dy)); const i=(ny*w+x)*4; r+=out[i];g+=out[i+1];b+=out[i+2];a+=out[i+3];c++; }
+    const i=(y*w+x)*4; out2[i]=r/c;out2[i+1]=g/c;out2[i+2]=b/c;out2[i+3]=a/c;
+  }
+  return out2;
+}
+
+function quantizeColors(data, maxColors, ditherAmount, imgW, imgH) {
+  const pixels = [];
+  for (let i = 0; i < data.length; i += 4) pixels.push([data[i],data[i+1],data[i+2],data[i+3]]);
+  function medianCut(list, depth) {
+    if (depth===0||list.length===0) {
+      let r=0,g=0,b=0; for (const p of list){r+=p[0];g+=p[1];b+=p[2];} const n=list.length||1;
+      return [[Math.round(r/n),Math.round(g/n),Math.round(b/n)]];
+    }
+    let mnR=255,mxR=0,mnG=255,mxG=0,mnB=255,mxB=0;
+    for (const p of list){if(p[0]<mnR)mnR=p[0];if(p[0]>mxR)mxR=p[0];if(p[1]<mnG)mnG=p[1];if(p[1]>mxG)mxG=p[1];if(p[2]<mnB)mnB=p[2];if(p[2]>mxB)mxB=p[2];}
+    const rR=mxR-mnR,rG=mxG-mnG,rB=mxB-mnB;
+    const ch=rR>=rG&&rR>=rB?0:rG>=rB?1:2;
+    list.sort((a,b)=>a[ch]-b[ch]);
+    const mid=list.length>>1;
+    return [...medianCut(list.slice(0,mid),depth-1),...medianCut(list.slice(mid),depth-1)];
+  }
+  const depth=Math.ceil(Math.log2(maxColors));
+  let sample=pixels; if(pixels.length>50000){sample=[];const s=Math.floor(pixels.length/50000);for(let i=0;i<pixels.length;i+=s)sample.push(pixels[i]);}
+  const palette=medianCut([...sample],depth);
+  const out=new Uint8ClampedArray(data);
+  function nearest(r,g,b){let best=0,bd=1e9;for(let i=0;i<palette.length;i++){const dr=r-palette[i][0],dg=g-palette[i][1],db=b-palette[i][2],d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;best=i;}}return palette[best];}
+  if(ditherAmount>0){
+    const buf=new Float32Array(data);
+    for(let y=0;y<imgH;y++)for(let x=0;x<imgW;x++){
+      const idx=(y*imgW+x)*4;const or=buf[idx],og=buf[idx+1],ob=buf[idx+2];
+      const nc=nearest(Math.max(0,Math.min(255,or)),Math.max(0,Math.min(255,og)),Math.max(0,Math.min(255,ob)));
+      out[idx]=nc[0];out[idx+1]=nc[1];out[idx+2]=nc[2];out[idx+3]=data[idx+3];
+      const er=(or-nc[0])*ditherAmount,eg=(og-nc[1])*ditherAmount,eb=(ob-nc[2])*ditherAmount;
+      if(x+1<imgW){const j=idx+4;buf[j]+=er*7/16;buf[j+1]+=eg*7/16;buf[j+2]+=eb*7/16;}
+      if(y+1<imgH){
+        if(x>0){const j=((y+1)*imgW+(x-1))*4;buf[j]+=er*3/16;buf[j+1]+=eg*3/16;buf[j+2]+=eb*3/16;}
+        {const j=((y+1)*imgW+x)*4;buf[j]+=er*5/16;buf[j+1]+=eg*5/16;buf[j+2]+=eb*5/16;}
+        if(x+1<imgW){const j=((y+1)*imgW+(x+1))*4;buf[j]+=er*1/16;buf[j+1]+=eg*1/16;buf[j+2]+=eb*1/16;}
+      }
+    }
+  } else {
+    for(let i=0;i<data.length;i+=4){const nc=nearest(data[i],data[i+1],data[i+2]);out[i]=nc[0];out[i+1]=nc[1];out[i+2]=nc[2];out[i+3]=data[i+3];}
+  }
+  return out;
+}
+
+self.onmessage = function(e) {
+  const { imageData, width, height, settings } = e.data;
+  let data = new Uint8ClampedArray(imageData);
+
+  postMessage({ type: 'progress', pct: 20 });
+
+  if (settings.blur > 0) {
+    data = boxBlur(data, width, height, Math.round(settings.blur * 2));
+  }
+  postMessage({ type: 'progress', pct: 45 });
+
+  if (settings.posterize > 0) {
+    const levels = Math.max(2, 8 - settings.posterize);
+    const step = 255 / (levels - 1);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i]  = Math.round(Math.round(data[i]  / step) * step);
+      data[i+1]= Math.round(Math.round(data[i+1]/ step) * step);
+      data[i+2]= Math.round(Math.round(data[i+2]/ step) * step);
+    }
+  }
+  postMessage({ type: 'progress', pct: 65 });
+
+  if (settings.colors < 256) {
+    data = quantizeColors(data, settings.colors, settings.dither / 100, width, height);
+  }
+  postMessage({ type: 'progress', pct: 90 });
+
+  postMessage({ type: 'done', imageData: data.buffer, width, height }, [data.buffer]);
+};
+`;
+
+const workerBlob = new Blob([WORKER_CODE], { type: 'application/javascript' });
+const workerBlobURL = URL.createObjectURL(workerBlob);
+
+// Pool av gjenbrukbare workers
+const workerPool = [];
+const workerBusy = [];
+for (let i = 0; i < NUM_WORKERS; i++) {
+  workerPool.push(new Worker(workerBlobURL));
+  workerBusy.push(false);
+}
+
+function getIdleWorker() {
+  return workerPool.findIndex((_,i) => !workerBusy[i]);
+}
+
+// ─── Image Processing ─────────────────────────────────────────────
+async function processImage(file, settings, onProgress) {
+  // 1. Tegn og skaler bildet i main-thread (krever DOM)
+  const bitmap = await createImageBitmap(await fetch(file.originalURL).then(r => r.blob()));
+  const sw = Math.round(bitmap.width  * settings.scale / 100);
+  const sh = Math.round(bitmap.height * settings.scale / 100);
+
+  const canvas = new OffscreenCanvas(sw, sh);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0, sw, sh);
+  bitmap.close();
+  const imageData = ctx.getImageData(0, 0, sw, sh);
+  onProgress(15);
+
+  // 2. Send pikseldata til en ledig worker
+  const pixelBuffer = imageData.data.buffer.slice(0);
+  const result = await new Promise((resolve, reject) => {
+    function tryDispatch() {
+      const idx = getIdleWorker();
+      if (idx === -1) { setTimeout(tryDispatch, 10); return; }
+      workerBusy[idx] = true;
+      const worker = workerPool[idx];
+      worker.onmessage = (e) => {
+        if (e.data.type === 'progress') { onProgress(15 + Math.round(e.data.pct * 0.75)); return; }
+        workerBusy[idx] = false;
+        resolve(e.data);
+      };
+      worker.onerror = (err) => { workerBusy[idx] = false; reject(err); };
+      worker.postMessage({ imageData: pixelBuffer, width: sw, height: sh, settings }, [pixelBuffer]);
+    }
+    tryDispatch();
+  });
+
+  // 3. Skriv tilbake og eksporter PNG
+  const outData = new ImageData(new Uint8ClampedArray(result.imageData), result.width, result.height);
+  const outCanvas = new OffscreenCanvas(result.width, result.height);
+  outCanvas.getContext('2d').putImageData(outData, 0, 0);
+  onProgress(95);
+  const blob = await outCanvas.convertToBlob({ type: 'image/png' });
+  onProgress(100);
+  return blob;
+}
+
+// ─── Simplify Current ─────────────────────────────────────────────
+async function simplifyCurrent() {
+  if (!selectedId) return;
+  const f = files.find(x => x.id === selectedId);
+  if (!f) return;
+  const settings = getSettings();
+
+  f.progress = 0; f.simplifiedBlob = null; f.simplifiedURL = null; f.newSize = 0;
+  renderFileList();
+
+  const gp = document.getElementById('globalProgress');
+  gp.style.display = 'block';
+  setWorkerBusy(true);
+
+  const blob = await processImage(f, settings, pct => {
+    f.progress = pct;
+    updateProgressColor(pct);
+    renderFileList();
+  });
+
+  f.simplifiedBlob = blob;
+  f.simplifiedURL = URL.createObjectURL(blob);
+  f.newSize = blob.size;
+  f.progress = 100;
+  renderFileList();
+  updateSplitPreview();
+
+  updateProgressColor(100);
+  setTimeout(() => { gp.style.display = 'none'; document.getElementById('globalProgressFill').style.width = '0%'; setWorkerBusy(false); }, 1000);
+  document.getElementById('btnExport').disabled = false;
+}
+
+// ─── Parallel Processing ──────────────────────────────────────────
+async function simplifyAll() {
+  const settings = getSettings();
+  const btn = document.getElementById('btnSimplify');
+  btn.disabled = true;
+  btn.textContent = 'Behandler…';
+  const gp = document.getElementById('globalProgress');
+  const gpf = document.getElementById('globalProgressFill');
+  gp.style.display = 'block';
+  setWorkerBusy(true);
+  files.forEach(f => { f.progress=0; f.simplifiedBlob=null; f.simplifiedURL=null; f.newSize=0; });
+  renderFileList();
+
+  async function processOne(f) {
+    const blob = await processImage(f, settings, pct => {
+      f.progress = pct; renderFileList();
+      const avg = files.reduce((s,x)=>s+x.progress,0)/files.length;
+      updateProgressColor(avg);
+    });
+    f.simplifiedBlob=blob; f.simplifiedURL=URL.createObjectURL(blob); f.newSize=blob.size; f.progress=100;
+    renderFileList();
+    if(f.id===selectedId)updateSplitPreview();
+  }
+
+  await Promise.all(files.map(f => processOne(f)));
+
+  updateProgressColor(100);
+  setTimeout(()=>{ gp.style.display='none'; document.getElementById('globalProgressFill').style.width='0%'; setWorkerBusy(false); },1000);
+  btn.disabled=false;
+  btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Forenkle alle';
+  document.getElementById('btnExport').disabled=false;
+  if(selectedId)updateSplitPreview();
+}
+
+// ─── Export ───────────────────────────────────────────────────────
+async function exportAll() {
+  // Forenkle alle filer som ikke allerede er forenklet
+  const unsimplified = files.filter(f => !f.simplifiedBlob);
+  if (unsimplified.length) await simplifyAll();
+  const simplified = files.filter(f => f.simplifiedBlob);
+  if (!simplified.length) return;
+
+  // File System Access API (Chrome/Edge) — lar brukeren velge mappe
+  if (window.showDirectoryPicker) {
+    let dirHandle;
+    try {
+      dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch (e) {
+      if (e.name === 'AbortError') return; // bruker avbrøt
+      // Fallback ved feil
+      await exportFallback(simplified);
+      return;
+    }
+    for (const f of simplified) {
+      const fileHandle = await dirHandle.getFileHandle(f.name, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(f.simplifiedBlob);
+      await writable.close();
+    }
+    return;
+  }
+
+  // Firefox / andre: standard nedlasting én etter én
+  await exportFallback(simplified);
+}
+
+async function exportFallback(simplified) {
+  for (const f of simplified) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f.simplifiedBlob);
+    a.download = f.name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
+
+function formatBytes(b) {
+  if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; return(b/1048576).toFixed(2)+' MB';
+}
+
+updateSliderLabels();
+</script>
+
+
+</body></html>
