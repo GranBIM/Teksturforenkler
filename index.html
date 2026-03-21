@@ -22,6 +22,7 @@
     --green-bg: rgba(22,163,74,0.14);
     --green-border: rgba(22,163,74,0.42);
     --blue: #2563eb;
+    --panel-width: 320px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -83,7 +84,7 @@
   /* ─── LAYOUT ─── */
   .main {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr var(--panel-width);
     height: calc(100vh - 53px);
   }
 
@@ -350,6 +351,32 @@
     cursor: pointer;
   }
 
+  /* ─── RESIZE HANDLE ─── */
+  .panel-resize-handle {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: -4px;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .panel-resize-handle::after {
+    content: '';
+    width: 2px;
+    height: 40px;
+    background: var(--border);
+    border-radius: 2px;
+    transition: background 0.15s, height 0.15s;
+  }
+  .panel-resize-handle:hover::after,
+  .panel-resize-handle.dragging::after {
+    background: var(--accent);
+    height: 60px;
+  }
+
   /* ─── RIGHT PANEL ─── */
   .right-panel {
     border-left: 1px solid var(--border);
@@ -357,6 +384,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
   }
   .panel-header {
     padding: 0.7rem 0.9rem;
@@ -396,9 +424,9 @@
   .file-item {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
-    padding: 0.55rem;
-    border-radius: 0.5rem;
+    gap: calc(var(--panel-fs, 13px) * 0.55);
+    padding: calc(var(--panel-fs, 13px) * 0.55);
+    border-radius: calc(var(--panel-fs, 13px) * 0.5);
     cursor: pointer;
     transition: background 0.1s;
     border: 1px solid transparent;
@@ -409,8 +437,9 @@
     border-color: var(--accent-border);
   }
   .file-thumb {
-    width: 38px; height: 38px;
-    border-radius: 0.35rem;
+    width: calc(var(--panel-fs, 13px) * 2.9);
+    height: calc(var(--panel-fs, 13px) * 2.9);
+    border-radius: calc(var(--panel-fs, 13px) * 0.35);
     object-fit: cover;
     background: var(--border-soft);
     flex-shrink: 0;
@@ -419,33 +448,33 @@
   }
   .file-meta { flex: 1; min-width: 0; }
   .file-name {
-    font-size: 0.78rem;
+    font-size: calc(var(--panel-fs, 13px) * 0.85);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .file-size {
-    font-size: 0.68rem;
+    font-size: calc(var(--panel-fs, 13px) * 0.75);
     color: var(--muted);
-    margin-top: 0.1rem;
+    margin-top: 0.1em;
     font-variant-numeric: tabular-nums;
   }
   .file-savings {
-    font-size: 0.68rem;
+    font-size: calc(var(--panel-fs, 13px) * 0.75);
     color: var(--green);
-    margin-top: 0.05rem;
+    margin-top: 0.05em;
     font-variant-numeric: tabular-nums;
   }
   .file-savings.est { opacity: 0.6; font-style: italic; }
 
-  .file-progress { width: 48px; flex-shrink: 0; text-align: right; }
+  .file-progress { width: calc(var(--panel-fs, 13px) * 3.5); flex-shrink: 0; text-align: right; }
   .progress-bar-bg {
     width: 100%; height: 3px;
     background: var(--border-soft);
     border-radius: 2px;
     overflow: hidden;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.2em;
   }
   .progress-bar-fill {
     height: 100%;
@@ -455,7 +484,7 @@
   }
   .progress-bar-fill.done { background: var(--green); }
   .progress-pct {
-    font-size: 0.62rem;
+    font-size: calc(var(--panel-fs, 13px) * 0.65);
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
@@ -550,6 +579,35 @@
   .drag-overlay p { font-size: 1.1rem; font-weight: 700; color: var(--accent); letter-spacing: -0.01em; }
   .drag-overlay small { font-size: 0.78rem; color: var(--muted); }
 
+  /* ─── LOADING OVERLAY ─── */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(11,18,32,0.88);
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .loading-overlay.active { display: flex; }
+  .loading-overlay p {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .loading-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* ─── AVANSERT KNAPP ─── */
   .advanced-btn {
     display: flex;
@@ -592,10 +650,15 @@
 </head>
 <body>
 
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <p>Vennligst vent, bildene lastes inn</p>
+</div>
+
 <div class="drag-overlay" id="dragOverlay">
   <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
   <p>Slipp bildefiler her</p>
-  <small>PNG, JPG, WEBP, BMP, GIF og flere</small>
+  <small>PNG, JPG, WEBP, BMP, GIF, AVIF, SVG, TIFF, ICO og flere</small>
 </div>
 
 <div class="header">
@@ -615,7 +678,7 @@
     <div class="preview-area" id="previewArea">
       <div class="preview-placeholder" id="previewPlaceholder">
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
-        <p>Last opp PNG-teksturer for forhåndsvisning</p>
+        <p>Last opp bildefiler for forhåndsvisning</p>
       </div>
 
       <div class="preview-side split-hidden" id="splitLeft">
@@ -695,7 +758,8 @@
     </div>
   </div>
 
-  <div class="right-panel">
+  <div class="right-panel" id="rightPanel">
+    <div class="panel-resize-handle" id="panelResizeHandle"></div>
     <div class="panel-header">
       <h2>Teksturer</h2>
       <span class="file-count" id="fileCount">0 filer</span>
@@ -712,7 +776,7 @@
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
       <p><strong>Klikk eller slipp</strong> bildefiler her</p>
     </div>
-    <input type="file" id="fileInput" accept="image/*" multiple="" hidden="">
+    <input type="file" id="fileInput" accept="image/*,.tif,.tiff,.avif,.ico,.svg,.bmp,.tga" multiple="" hidden="">
 
     <div class="bottom-bar">
       <button class="btn btn-secondary" onclick="simplifyAll()" id="btnSimplify">
@@ -806,45 +870,96 @@ document.addEventListener('dragleave', () => { dragCounter--; if (dragCounter <=
 document.addEventListener('dragover', e => { e.preventDefault(); });
 document.addEventListener('drop', e => { e.preventDefault(); dragCounter = 0; dragOverlay.classList.remove('active'); uploadZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
 
+function getOutputFormat(mimeType) {
+  // SVG → PNG (rasteriseres), TIFF → PNG (ikke støttet i canvas output), alt annet beholder format
+  if (mimeType === 'image/svg+xml') return { mime: 'image/png', ext: '.png' };
+  if (mimeType === 'image/tiff')    return { mime: 'image/png', ext: '.png' };
+  if (mimeType === 'image/x-icon' || mimeType === 'image/vnd.microsoft.icon') return { mime: 'image/png', ext: '.png' };
+  if (mimeType === 'image/avif')    return { mime: 'image/webp', ext: '.webp' }; // avif output ikke støttet i canvas
+  if (mimeType === 'image/webp')    return { mime: 'image/webp', ext: '.webp' };
+  if (mimeType === 'image/jpeg')    return { mime: 'image/jpeg', ext: '.jpg' };
+  if (mimeType === 'image/gif')     return { mime: 'image/png', ext: '.png' }; // GIF → PNG (animasjon ikke støttet)
+  if (mimeType === 'image/bmp')     return { mime: 'image/png', ext: '.png' };
+  return { mime: 'image/png', ext: '.png' };
+}
+
 function handleFiles(filesList) {
   let pending = 0;
+  let lastId = null;
 
+  // Filtrer til gyldige bildefiler
+  const imageFiles = [];
   for (const f of filesList) {
-    if (!f.type.startsWith('image/')) continue;
+    const mime = f.type || 'image/unknown';
+    const knownMimes = ['image/png','image/jpeg','image/jpg','image/webp','image/gif','image/bmp',
+      'image/svg+xml','image/tiff','image/x-tiff','image/avif','image/x-icon','image/vnd.microsoft.icon',
+      'image/x-bmp','image/x-ms-bmp'];
+    const isImage = mime.startsWith('image/') || knownMimes.includes(mime) ||
+      /\.(png|jpe?g|webp|gif|bmp|svg|tiff?|avif|ico|tga)$/i.test(f.name);
+    if (isImage) imageFiles.push(f);
+  }
+  if (!imageFiles.length) return;
 
-    const id = crypto.randomUUID();
-    const baseName = f.name.replace(/\.[^.]+$/, '') + '.png';
+  // Vis loading-overlay alltid ved import
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  loadingOverlay.classList.add('active');
 
-    if (f.type === 'image/png') {
-      const url = URL.createObjectURL(f);
-      files.push({ id, name: baseName, originalBlob: f, originalURL: url, originalSize: f.size, simplifiedBlob: null, simplifiedURL: null, newSize: 0, progress: 0 });
-    } else {
-      pending++;
-      const url = URL.createObjectURL(f);
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        canvas.toBlob(blob => {
-          URL.revokeObjectURL(url);
-          const pngUrl = URL.createObjectURL(blob);
-          files.push({ id, name: baseName, originalBlob: blob, originalURL: pngUrl, originalSize: f.size, simplifiedBlob: null, simplifiedURL: null, newSize: 0, progress: 0 });
-          pending--;
-          if (!selectedId && files.length) selectFile(files[0].id);
-          if (pending === 0) { renderFileList(); if (selectedId) simplifyCurrent(); }
-        }, 'image/png');
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); pending--; };
-      img.src = url;
-    }
+  function onAllDone() {
+    loadingOverlay.classList.remove('active');
+    renderFileList();
+    setPreset('light');
+    selectFile(lastId);
+    simplifyCurrent();
   }
 
-  if (pending === 0 && files.length) {
-    renderFileList();
-    if (!selectedId) selectFile(files[0].id);
-    if (selectedId) simplifyCurrent();
+  for (const f of imageFiles) {
+    const mime = f.type || 'image/unknown';
+    const id = crypto.randomUUID();
+    lastId = id;
+    const { mime: outMime, ext: outExt } = getOutputFormat(mime || 'image/png');
+    const baseName = f.name.replace(/\.[^.]+$/, '') + outExt;
+
+    pending++;
+    const url = URL.createObjectURL(f);
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const w = img.naturalWidth  || 1024;
+      const h = img.naturalHeight || 1024;
+      canvas.width  = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        URL.revokeObjectURL(url);
+        const pngUrl = URL.createObjectURL(blob);
+        files.push({
+          id,
+          name: baseName,
+          originalBlob: blob,
+          originalURL: pngUrl,
+          originalSize: f.size,
+          originalWidth: w,
+          originalHeight: h,
+          outputMime: outMime,
+          simplifiedBlob: null,
+          simplifiedURL: null,
+          newSize: 0,
+          newWidth: 0,
+          newHeight: 0,
+          progress: 0
+        });
+        pending--;
+        if (pending === 0) onAllDone();
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      pending--;
+      if (pending === 0) onAllDone();
+    };
+    if (mime === 'image/svg+xml') img.crossOrigin = 'anonymous';
+    img.src = url;
   }
 }
 
@@ -857,15 +972,16 @@ function renderFileList() {
     return;
   }
   list.innerHTML = files.map(f => {
+    const origDims = (f.originalWidth && f.originalHeight) ? ` · ${f.originalWidth}×${f.originalHeight}px` : '';
     const savingsHtml = f.simplifiedBlob
-      ? `<div class="file-savings">&rarr; ${formatBytes(f.newSize)} (&minus;${Math.round((1 - f.newSize / f.originalSize) * 100)}%)</div>`
+      ? `<div class="file-savings">&rarr; ${formatBytes(f.newSize)} · ${f.newWidth}×${f.newHeight}px (&minus;${Math.round((1 - f.newSize / f.originalSize) * 100)}%)</div>`
       : '';
     return `
     <div class="file-item ${f.id === selectedId ? 'selected' : ''}" onclick="selectFile('${f.id}')">
       <img class="file-thumb" src="${f.simplifiedURL || f.originalURL}" />
       <div class="file-meta">
         <div class="file-name" title="${f.name}">${f.name}</div>
-        <div class="file-size">${formatBytes(f.originalSize)}</div>
+        <div class="file-size">${formatBytes(f.originalSize)}${origDims}</div>
         ${savingsHtml}
       </div>
       <div class="file-progress">
@@ -895,7 +1011,7 @@ previewArea.addEventListener('wheel', e => {
 }, { passive: false });
 
 previewArea.addEventListener('mousedown', e => {
-  if (!selectedId || zoomLevel <= 1) return;
+  if (!selectedId) return;
   isPanning = true;
   panStartX = e.clientX - panX;
   panStartY = e.clientY - panY;
@@ -910,7 +1026,7 @@ window.addEventListener('mousemove', e => {
 window.addEventListener('mouseup', () => {
   if (isPanning) {
     isPanning = false;
-    previewArea.style.cursor = zoomLevel > 1 ? 'grab' : 'default';
+    previewArea.style.cursor = selectedId ? 'grab' : 'default';
   }
 });
 
@@ -920,7 +1036,7 @@ function applyZoom() {
   const t = `scale(${zoomLevel}) translate(${panX/zoomLevel}px, ${panY/zoomLevel}px)`;
   cL.style.transform = t;
   cR.style.transform = t;
-  previewArea.style.cursor = zoomLevel > 1 ? 'grab' : 'default';
+  previewArea.style.cursor = selectedId ? 'grab' : 'default';
   document.getElementById('zoomHint').style.display = selectedId ? '' : 'none';
 }
 
@@ -1174,14 +1290,18 @@ async function processImage(file, settings, onProgress) {
     tryDispatch();
   });
 
-  // 3. Skriv tilbake og eksporter PNG
+  // 3. Skriv tilbake og eksporter i riktig format
   const outData = new ImageData(new Uint8ClampedArray(result.imageData), result.width, result.height);
   const outCanvas = new OffscreenCanvas(result.width, result.height);
   outCanvas.getContext('2d').putImageData(outData, 0, 0);
   onProgress(95);
-  const blob = await outCanvas.convertToBlob({ type: 'image/png' });
+  const outMime = file.outputMime || 'image/png';
+  const blobOptions = { type: outMime };
+  if (outMime === 'image/jpeg') blobOptions.quality = 0.85 + (settings.quality - 1) / 8 * 0.14; // 0.85–0.99
+  if (outMime === 'image/webp') blobOptions.quality = 0.75 + (settings.quality - 1) / 8 * 0.24; // 0.75–0.99
+  const blob = await outCanvas.convertToBlob(blobOptions);
   onProgress(100);
-  return blob;
+  return { blob, width: result.width, height: result.height };
 }
 
 // ─── Simplify Current ─────────────────────────────────────────────
@@ -1198,7 +1318,7 @@ async function simplifyCurrent() {
   gp.style.display = 'block';
   setWorkerBusy(true);
 
-  const blob = await processImage(f, settings, pct => {
+  const { blob, width: nw, height: nh } = await processImage(f, settings, pct => {
     f.progress = pct;
     updateProgressColor(pct);
     renderFileList();
@@ -1207,6 +1327,8 @@ async function simplifyCurrent() {
   f.simplifiedBlob = blob;
   f.simplifiedURL = URL.createObjectURL(blob);
   f.newSize = blob.size;
+  f.newWidth = nw;
+  f.newHeight = nh;
   f.progress = 100;
   renderFileList();
   updateSplitPreview();
@@ -1230,12 +1352,12 @@ async function simplifyAll() {
   renderFileList();
 
   async function processOne(f) {
-    const blob = await processImage(f, settings, pct => {
+    const { blob, width: nw, height: nh } = await processImage(f, settings, pct => {
       f.progress = pct; renderFileList();
       const avg = files.reduce((s,x)=>s+x.progress,0)/files.length;
       updateProgressColor(avg);
     });
-    f.simplifiedBlob=blob; f.simplifiedURL=URL.createObjectURL(blob); f.newSize=blob.size; f.progress=100;
+    f.simplifiedBlob=blob; f.simplifiedURL=URL.createObjectURL(blob); f.newSize=blob.size; f.newWidth=nw; f.newHeight=nh; f.progress=100;
     renderFileList();
     if(f.id===selectedId)updateSplitPreview();
   }
@@ -1297,7 +1419,53 @@ function formatBytes(b) {
 }
 
 updateSliderLabels();
-</script>
 
+// ─── Panel Resize ─────────────────────────────────────────────────
+(function() {
+  const handle  = document.getElementById('panelResizeHandle');
+  const root    = document.documentElement;
+  const MIN_W   = 200;
+  const MAX_W   = 620;
+  const DEFAULT_W = 320;
+  let dragging  = false;
+  let startX, startW;
+
+  function setPanelWidth(w) {
+    w = Math.max(MIN_W, Math.min(MAX_W, w));
+    root.style.setProperty('--panel-width', w + 'px');
+    // --panel-fs skalerer fra 13px ved 320px, aldri under 13px (standard)
+    const fs = Math.max(13, 13 * (w / DEFAULT_W));
+    root.style.setProperty('--panel-fs', fs.toFixed(2) + 'px');
+  }
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    startW = document.getElementById('rightPanel').getBoundingClientRect().width;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  handle.addEventListener('dblclick', () => {
+    setPanelWidth(DEFAULT_W);
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = startX - e.clientX;
+    setPanelWidth(startW + delta);
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+</script>
 
 </body></html>
